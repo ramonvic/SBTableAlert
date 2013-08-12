@@ -31,6 +31,7 @@
 #import "SBTableAlert.h"
 #import <QuartzCore/QuartzCore.h>
 
+
 #if __has_feature(objc_arc)
 #define AUTORELEASE(exp) exp
 #define RELEASE(exp) exp
@@ -173,6 +174,7 @@
 		[_cellBackgroundView setAutoresizingMask:(UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight)];
 		[self setBackgroundView:_cellBackgroundView];
 		
+		
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(setNeedsDisplay) name:UIApplicationDidChangeStatusBarOrientationNotification object:nil];
 	}
 	return self;
@@ -242,7 +244,6 @@
 @synthesize tableView=_tableView;
 @synthesize type=_type;
 @synthesize style=_style;
-@synthesize fixedTableHeight = _fixedTableHeight;
 @synthesize maximumVisibleRows=_maximumVisibleRows;
 @synthesize rowHeight=_rowHeight;
 
@@ -304,13 +305,13 @@
 }
 
 - (void)dealloc {
+    _alertView.delegate = nil;
 	[self setTableView:nil];
 	[self setView:nil];
 	
 	[self setShadow:nil];
 	
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
-	
 #if !__has_feature(objc_arc)
 	[super dealloc];
 #endif
@@ -335,14 +336,6 @@
 		[(SBTableView *)_tableView setAlertStyle:SBTableAlertStylePlain];
 		[_shadow setHidden:YES];
 	}
-    else if(style == SBTableAlertStyleSearching){
-		[_tableView setSeparatorStyle:UITableViewCellSeparatorStyleNone];
-        [(SBTableView *)_tableView setAlertStyle:SBTableAlertStyleApple];
-        [_shadow setHidden:NO];
-        self.fixedTableHeight = 120;
-        
-        
-    }
 	_style = style;
 }
 
@@ -392,44 +385,37 @@
 
 
 - (void)layout {
-    
-    CGFloat resultHeight;
-    if (_fixedTableHeight != 0) {
-        resultHeight = _fixedTableHeight;
-    }
-    else{
-        CGFloat height = 0.;
-        NSInteger rows = 0;
-        for (NSInteger section = 0; section < [_tableView numberOfSections]; section++) {
-            for (NSInteger row = 0; row < [_tableView numberOfRowsInSection:section]; row++) {
-                height += [_tableView.delegate tableView:_tableView heightForRowAtIndexPath:[NSIndexPath indexPathForRow:row inSection:section]];
-                rows ++;
-            }
-        }
-        
-        CGRect screenRect = [[UIScreen mainScreen] bounds];
-        CGFloat avgRowHeight = height / rows;
-        
-        if(height > screenRect.size.height) {
-            if(UIDeviceOrientationIsPortrait([UIDevice currentDevice].orientation))
-                resultHeight = screenRect.size.height - _alertView.frame.size.height - 65.;
-            else
-                resultHeight = screenRect.size.width - _alertView.frame.size.height - 65.;
-        }
-        
-        else if (_maximumVisibleRows == -1 || rows <= _maximumVisibleRows)
-            resultHeight = _tableView.contentSize.height;
+	CGFloat height = 0.;
+	NSInteger rows = 0;
+	for (NSInteger section = 0; section < [_tableView numberOfSections]; section++) {
+		for (NSInteger row = 0; row < [_tableView numberOfRowsInSection:section]; row++) {
+			height += [_tableView.delegate tableView:_tableView heightForRowAtIndexPath:[NSIndexPath indexPathForRow:row inSection:section]];
+			rows ++;
+		}
+	}
+	
+    CGRect screenRect = [[UIScreen mainScreen] bounds];
+	CGFloat avgRowHeight = height / rows;
+	CGFloat resultHeigh;
+	
+    if(height > screenRect.size.height) {
+        if(UIDeviceOrientationIsPortrait([UIDevice currentDevice].orientation))
+            resultHeigh = screenRect.size.height - _alertView.frame.size.height - 65.;
         else
-            resultHeight = (avgRowHeight * _maximumVisibleRows);
-        
+            resultHeigh = screenRect.size.width - _alertView.frame.size.height - 65.;
     }
-    
-	[self increaseHeightBy:resultHeight];
+	else if (_maximumVisibleRows == -1 || rows <= _maximumVisibleRows)
+		resultHeigh = _tableView.contentSize.height;
+	else
+		resultHeigh = (avgRowHeight * _maximumVisibleRows);
+	
+	[self increaseHeightBy:resultHeigh];
+	
 	
 	[_tableView setFrame:CGRectMake(12,
-                                    _alertView.frame.size.height - resultHeight - 65,
+                                    _alertView.frame.size.height - resultHeigh - 65,
                                     _alertView.frame.size.width - 24,
-                                    resultHeight)];
+                                    resultHeigh)];
 	
 	[_shadow setFrame:CGRectMake(_tableView.frame.origin.x,
                                  _tableView.frame.origin.y,
