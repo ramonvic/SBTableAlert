@@ -31,6 +31,14 @@
 #import "SBTableAlert.h"
 #import <QuartzCore/QuartzCore.h>
 
+#if __has_feature(objc_arc)
+#define AUTORELEASE(exp) exp
+#define RELEASE(exp) exp
+#else
+#define AUTORELEASE(exp) [exp autorelease]
+#define RELEASE(exp) [exp release]
+#endif
+
 @interface SBTableViewTopShadowView : UIView {}
 @end
 
@@ -40,9 +48,9 @@
 	[super drawRect:rect];
 	
 	CGContextRef context = UIGraphicsGetCurrentContext();
-
+    
 	// Draw top shadow
-	CGFloat colors [] = { 
+	CGFloat colors [] = {
 		0, 0, 0, 0.4,
 		0, 0, 0, 0,
 	};
@@ -73,7 +81,7 @@
 	
 	if (_alertStyle == SBTableAlertStyleApple) {
 		// Draw background gradient
-		CGFloat colors [] = { 
+		CGFloat colors [] = {
 			0.922, 0.925, 0.933, 1,
 			0.749, 0.753, 0.761, 1,
 		};
@@ -119,7 +127,9 @@
 
 - (void)dealloc {
 	[self setTitle:nil];
+#if !__has_feature(objc_arc)
 	[super dealloc];
+#endif
 }
 
 - (void)drawRect:(CGRect)rect {
@@ -128,7 +138,7 @@
 	CGContextRef context = UIGraphicsGetCurrentContext();
 	
 	[[UIColor colorWithWhite:0 alpha:0.8] set];
-	[_title drawAtPoint:CGPointMake(10, 4) withFont:[UIFont boldSystemFontOfSize:12]];	
+	[_title drawAtPoint:CGPointMake(10, 4) withFont:[UIFont boldSystemFontOfSize:12]];
 	[[UIColor whiteColor] set];
 	[_title drawAtPoint:CGPointMake(10, 5) withFont:[UIFont boldSystemFontOfSize:12]];
 	
@@ -158,11 +168,10 @@
 	if((self = [super initWithStyle:style reuseIdentifier:reuseIdentifier])) {
 		CGRect frame = CGRectMake(0.0, 0.0, self.contentView.bounds.size.width, self.contentView.bounds.size.height);
 		
-		_cellBackgroundView = [[SBTableAlertCellBackgroundView alloc] initWithFrame:frame];
+		_cellBackgroundView = AUTORELEASE([[SBTableAlertCellBackgroundView alloc] initWithFrame:frame]);
 		[_cellBackgroundView setBackgroundColor:[UIColor clearColor]];
 		[_cellBackgroundView setAutoresizingMask:(UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight)];
 		[self setBackgroundView:_cellBackgroundView];
-		[_cellBackgroundView release];
 		
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(setNeedsDisplay) name:UIApplicationDidChangeStatusBarOrientationNotification object:nil];
 	}
@@ -171,7 +180,9 @@
 
 - (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
+#if !__has_feature(objc_arc)
 	[super dealloc];
+#endif
 }
 
 - (void)layoutSubviews {
@@ -182,9 +193,9 @@
 		editingOffset = -self.contentView.frame.origin.x;
 	
 	_cellBackgroundView.frame = CGRectMake(editingOffset,
-																			_cellBackgroundView.frame.origin.y,
-																			self.frame.size.width - editingOffset,
-																			_cellBackgroundView.frame.size.height);
+                                           _cellBackgroundView.frame.origin.y,
+                                           self.frame.size.width - editingOffset,
+                                           _cellBackgroundView.frame.size.height);
 	
 	[self.textLabel setBackgroundColor:[UIColor clearColor]];
 	[self.detailTextLabel setBackgroundColor:[UIColor clearColor]];
@@ -201,12 +212,12 @@
 - (void)drawCellBackgroundView:(CGRect)r {
 	CGContextRef context = UIGraphicsGetCurrentContext();
 	CGContextSetLineWidth(context, 1.5);
-		
+    
 	[[UIColor colorWithWhite:1 alpha:0.8] set];
 	CGContextMoveToPoint(context, 0, 0);
 	CGContextAddLineToPoint(context, self.bounds.size.width, 0);
 	CGContextStrokePath(context);
-		
+    
 	[[UIColor colorWithWhite:0 alpha:0.35] set];
 	CGContextMoveToPoint(context, 0, self.bounds.size.height);
 	CGContextAddLineToPoint(context, self.bounds.size.width, self.bounds.size.height);
@@ -231,6 +242,7 @@
 @synthesize tableView=_tableView;
 @synthesize type=_type;
 @synthesize style=_style;
+@synthesize fixedTableHeight = _fixedTableHeight;
 @synthesize maximumVisibleRows=_maximumVisibleRows;
 @synthesize rowHeight=_rowHeight;
 
@@ -246,13 +258,13 @@
 
 - (id)initWithTitle:(NSString *)title cancelButtonTitle:(NSString *)cancelTitle messageFormat:(NSString *)format args:(va_list)args {
 	if ((self = [super init])) {
-		NSString *message = format ? [[[NSString alloc] initWithFormat:format arguments:args] autorelease] : nil;
+		NSString *message = format ? AUTORELEASE([[NSString alloc] initWithFormat:format arguments:args]) : nil;
 		
 		_alertView = [[UIAlertView alloc] initWithTitle:title message:message delegate:self cancelButtonTitle:cancelTitle otherButtonTitles:nil];
 		
 		_maximumVisibleRows = 4;
 		_rowHeight = 40.;
-
+        
 		_tableView = [[SBTableView alloc] initWithFrame:CGRectZero style:UITableViewStylePlain];
 		
 		[_tableView setDelegate:self];
@@ -288,11 +300,10 @@
 }
 
 + (id)alertWithTitle:(NSString *)title cancelButtonTitle:(NSString *)cancelTitle messageFormat:(NSString *)message, ... {
-	return [[[SBTableAlert alloc] initWithTitle:title cancelButtonTitle:cancelTitle messageFormat:message] autorelease];
+	return AUTORELEASE([[SBTableAlert alloc] initWithTitle:title cancelButtonTitle:cancelTitle messageFormat:message]);
 }
 
 - (void)dealloc {
-    _alertView.delegate = nil;
 	[self setTableView:nil];
 	[self setView:nil];
 	
@@ -300,7 +311,9 @@
 	
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
 	
+#if !__has_feature(objc_arc)
 	[super dealloc];
+#endif
 }
 
 #pragma mark -
@@ -322,6 +335,14 @@
 		[(SBTableView *)_tableView setAlertStyle:SBTableAlertStylePlain];
 		[_shadow setHidden:YES];
 	}
+    else if(style == SBTableAlertStyleSearching){
+		[_tableView setSeparatorStyle:UITableViewCellSeparatorStyleNone];
+        [(SBTableView *)_tableView setAlertStyle:SBTableAlertStyleApple];
+        [_shadow setHidden:NO];
+        self.fixedTableHeight = 120;
+        
+        
+    }
 	_style = style;
 }
 
@@ -371,42 +392,49 @@
 
 
 - (void)layout {
-	CGFloat height = 0.;
-	NSInteger rows = 0;
-	for (NSInteger section = 0; section < [_tableView numberOfSections]; section++) {
-		for (NSInteger row = 0; row < [_tableView numberOfRowsInSection:section]; row++) {
-			height += [_tableView.delegate tableView:_tableView heightForRowAtIndexPath:[NSIndexPath indexPathForRow:row inSection:section]];
-			rows ++;
-		}
-	}
-	
-    CGRect screenRect = [[UIScreen mainScreen] bounds];
-	CGFloat avgRowHeight = height / rows;
-	CGFloat resultHeigh;
-	
-    if(height > screenRect.size.height) {
-        if(UIDeviceOrientationIsPortrait([UIDevice currentDevice].orientation))
-            resultHeigh = screenRect.size.height - _alertView.frame.size.height - 65.;
-        else
-            resultHeigh = screenRect.size.width - _alertView.frame.size.height - 65.;
+    
+    CGFloat resultHeight;
+    if (_fixedTableHeight != 0) {
+        resultHeight = _fixedTableHeight;
     }
-	else if (_maximumVisibleRows == -1 || rows <= _maximumVisibleRows)
-		resultHeigh = _tableView.contentSize.height;
-	else
-		resultHeigh = (avgRowHeight * _maximumVisibleRows);
-	
-	[self increaseHeightBy:resultHeigh];
-	
+    else{
+        CGFloat height = 0.;
+        NSInteger rows = 0;
+        for (NSInteger section = 0; section < [_tableView numberOfSections]; section++) {
+            for (NSInteger row = 0; row < [_tableView numberOfRowsInSection:section]; row++) {
+                height += [_tableView.delegate tableView:_tableView heightForRowAtIndexPath:[NSIndexPath indexPathForRow:row inSection:section]];
+                rows ++;
+            }
+        }
+        
+        CGRect screenRect = [[UIScreen mainScreen] bounds];
+        CGFloat avgRowHeight = height / rows;
+        
+        if(height > screenRect.size.height) {
+            if(UIDeviceOrientationIsPortrait([UIDevice currentDevice].orientation))
+                resultHeight = screenRect.size.height - _alertView.frame.size.height - 65.;
+            else
+                resultHeight = screenRect.size.width - _alertView.frame.size.height - 65.;
+        }
+        
+        else if (_maximumVisibleRows == -1 || rows <= _maximumVisibleRows)
+            resultHeight = _tableView.contentSize.height;
+        else
+            resultHeight = (avgRowHeight * _maximumVisibleRows);
+        
+    }
+    
+	[self increaseHeightBy:resultHeight];
 	
 	[_tableView setFrame:CGRectMake(12,
-																	_alertView.frame.size.height - resultHeigh - 65,
-																	_alertView.frame.size.width - 24,
-																	resultHeigh)];
+                                    _alertView.frame.size.height - resultHeight - 65,
+                                    _alertView.frame.size.width - 24,
+                                    resultHeight)];
 	
 	[_shadow setFrame:CGRectMake(_tableView.frame.origin.x,
-															 _tableView.frame.origin.y,
-															 _tableView.frame.size.width,
-															 8)];
+                                 _tableView.frame.origin.y,
+                                 _tableView.frame.size.width,
+                                 8)];
 }
 
 - (void)layoutAfterSomeTime{
@@ -419,7 +447,7 @@
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
     if ([_delegate respondsToSelector:@selector(tableAlert:heightForRowAtIndexPath:)])
         return [_delegate tableAlert:self heightForRowAtIndexPath:indexPath];
-
+    
     return _rowHeight;
 }
 
@@ -437,9 +465,9 @@
 		if (!title)
 			return nil;
 		
-		return [[[SBTableViewSectionHeaderView alloc] initWithTitle:title] autorelease];
+		return AUTORELEASE([[SBTableViewSectionHeaderView alloc] initWithTitle:title]);
 	}
-
+    
 	return nil;
 }
 
@@ -452,7 +480,7 @@
 #pragma mark -
 #pragma mark UITableViewDataSource
 
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {	
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
 	return [_dataSource tableAlert:self	cellForRowAtIndexPath:indexPath];
 }
 
@@ -463,7 +491,7 @@
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
 	if ([_dataSource respondsToSelector:@selector(numberOfSectionsInTableAlert:)])
 		return [_dataSource numberOfSectionsInTableAlert:self];
-
+    
 	return 1;
 }
 
